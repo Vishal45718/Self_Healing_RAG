@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     # Self-Healing Pipeline Limits
     max_retries: int = 3
 
+    # Document Chunking Settings
+    chunk_size: int = 1000
+    chunk_overlap: int = 200
+
     @property
     def chroma_directory(self) -> Path:
         """Return the resolved Chroma persistence path."""

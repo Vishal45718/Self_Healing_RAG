@@ -49,3 +49,20 @@ This document records the architectural and technology decisions made for the Se
   - *Hugging Face Transformers raw pipeline*: Requires manual tensor batching, pooling logic, and device management.
   - *FastEmbed / ONNX Runtime*: Very fast, but slightly narrower model catalog and ecosystem integration.
 - **Decision & Rationale**: `sentence-transformers` runs locally on CPU or GPU with excellent throughput for lightweight models (like `all-MiniLM-L6-v2` or `bge-small-en-v1.5`), provides deterministic results, has zero per-call cost or network latency, and integrates seamlessly with Chroma embedding functions.
+
+---
+
+## D-005: Why pypdf
+- **Status**: Accepted
+- **Context**: The `DocumentLoader` requires a lightweight dependency to parse content and extract page information from `.pdf` files.
+- **Alternatives Considered**:
+  - *PyMuPDF*: Very fast and robust, but uses AGPL licensing which could be restrictive depending on deployment.
+  - *pdfplumber*: Excellent table extraction, but heavier footprint.
+- **Decision & Rationale**: `pypdf` is a pure-python, actively maintained library with a permissive BSD-3 license that easily integrates into our ingestion pipeline for extracting text and basic metadata (such as page lengths and counts).
+
+---
+
+## D-006: Deterministic Chunk ID Generation
+- **Status**: Accepted
+- **Context**: Document chunks must have consistent, predictable identifiers to avoid duplicated embedding computations across multiple pipeline runs.
+- **Decision & Rationale**: Instead of random UUIDs, chunk IDs are generated using a SHA-256 hash of `document_id`, `chunk_index`, and the chunk's text `content`. This guarantees identical text pieces from identical documents receive identical IDs in vector storage.

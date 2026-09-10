@@ -9,7 +9,7 @@ This document tracks the phased milestones, tasks, acceptance criteria, and comp
 | Phase | Description | Status |
 |---|---|---|
 | **Phase 0** | **Project Scaffold & Setup** | **COMPLETED** |
-| Phase 1 | Ingestion & Vector Storage Pipeline | Pending |
+| **Phase 1** | **Ingestion & Vector Storage Pipeline** | **COMPLETED** |
 | Phase 2 | Retrieval, Generation & Critic Components | Pending |
 | Phase 3 | LangGraph Self-Healing Feedback Workflow | Pending |
 | Phase 4 | End-to-End Evaluation & Hardening | Pending |
@@ -83,9 +83,24 @@ Initialize project structure, virtual environment, dependencies, configuration s
 
 ---
 
-## Next Phase: Phase 1 — Ingestion & Vector Storage Pipeline
+## Phase 1: Ingestion & Vector Storage Pipeline
 
-- Task 1.1: Document loading & parser support
-- Task 1.2: Semantic chunking strategies
-- Task 1.3: Local embedding pipeline with `sentence-transformers`
-- Task 1.4: Chroma storage and persistent index management
+### Tasks & Status
+- [x] **1.1 Document loading & parser support**
+  - [x] Implemented `DocumentLoader` supporting TXT, MD, and PDF.
+  - [x] Handled missing/corrupt/unsupported files without crashing.
+  - [x] Preserved useful metadata (PDF page information, file type, source).
+- [x] **1.2 Semantic chunking strategies**
+  - [x] Implemented `RecursiveCharacterChunker`.
+  - [x] Configurable chunk size and overlap in `settings.py`.
+  - [x] Deterministic chunk ID generation using `hashlib.sha256`.
+  - [x] Tests written to verify overlap and metadata preservation.
+- [ ] **1.3 Local embedding pipeline with `sentence-transformers`**
+  - [ ] Initialize embedding model.
+- [ ] **1.4 Chroma storage and persistent index management**
+  - [ ] Integrate with local persistent Chroma store.
+
+---
+
+## Next Phase: Phase 2 — Retrieval, Generation & Critic Components
+

@@ -1,0 +1,6 @@
+The Eiffel Tower was completed in 1889.
+It was designed by Gustave Eiffel's engineering company.
+
+It stands 330 meters tall and was the tallest man-made structure
+in the world for 41 years, until the Chrysler Building was finished
+in New York in 1930.
