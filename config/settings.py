@@ -1,0 +1,40 @@
+"""Centralized configuration module for Self-Healing RAG.
+
+Loads configuration from environment variables and an optional .env file.
+Provides sensible defaults without hardcoding any secrets or credentials.
+"""
+
+from pathlib import Path
+from typing import Optional
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    """Application settings and runtime parameters."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    # Hugging Face Settings
+    hf_token: Optional[str] = None
+    hf_provider: str = "together"
+    llm_model_id: str = "meta-llama/Llama-3.3-70B-Instruct"
+    embedding_model_id: str = "sentence-transformers/all-MiniLM-L6-v2"
+
+    # Chroma Vector Database Settings
+    chroma_path: str = "./data/chroma"
+
+    # Self-Healing Pipeline Limits
+    max_retries: int = 3
+
+    @property
+    def chroma_directory(self) -> Path:
+        """Return the resolved Chroma persistence path."""
+        return Path(self.chroma_path).resolve()
+
+
+# Centralized settings instance
+settings = Settings()
