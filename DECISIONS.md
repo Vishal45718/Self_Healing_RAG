@@ -66,3 +66,23 @@ This document records the architectural and technology decisions made for the Se
 - **Status**: Accepted
 - **Context**: Document chunks must have consistent, predictable identifiers to avoid duplicated embedding computations across multiple pipeline runs.
 - **Decision & Rationale**: Instead of random UUIDs, chunk IDs are generated using a SHA-256 hash of `document_id`, `chunk_index`, and the chunk's text `content`. This guarantees identical text pieces from identical documents receive identical IDs in vector storage.
+
+---
+
+## D-007: Pydantic Schema Validation for Structured Critic Output
+- **Status**: Accepted
+- **Context**: The Critic component must evaluate retrieval sufficiency and generation groundedness and return structured, categorical outputs for conditional routing in the Phase 3 LangGraph self-healing loop.
+- **Alternatives Considered**:
+  - *Raw string parsing / regex matching*: Fragile and prone to false negatives or parsing crashes.
+  - *Unvalidated JSON dicts*: Silently misses missing or corrupted fields from LLM outputs.
+- **Decision & Rationale**: We use strict Pydantic schemas (`CriticEvaluation`, `CriticVerdict`, `CriticFailureReason`) to validate the LLM's parsed JSON output. Malformed responses or missing keys raise explicit validation errors rather than silently propagating corrupted state into downstream graph nodes.
+
+---
+
+## D-008: Dependency Injection for LLM Inference Clients
+- **Status**: Accepted
+- **Context**: Generation and Critic components depend on Hugging Face inference APIs, but unit tests must run deterministically, fast, and offline without requiring active API tokens or network access.
+- **Alternatives Considered**:
+  - *Monkeypatching global SDK functions*: Brittle and prone to test order dependency issues.
+  - *Separate MockGenerator / MockCritic classes*: Duplicates logic and causes interface divergence.
+- **Decision & Rationale**: `Generator` and `Critic` constructors accept an optional `client: Optional[InferenceClient] = None`. When omitted in production, they instantiate the official `huggingface_hub.InferenceClient` using centralized `config.settings`. When provided in tests, a mock client can simulate completions and errors deterministically.

@@ -6,7 +6,7 @@ This document records defects, issues, and unexpected behaviors encountered duri
 
 | ID | Status | Severity | Phase | Component | Description | Root Cause | Resolution |
 |----|--------|----------|-------|-----------|-------------|------------|------------|
-| *None* | Closed | Info | Phase 0 | Initial Setup | No bugs encountered during initial scaffold. | N/A | Initial state verified clean. |
+| BUG-001 | Fixed | Medium | Phase 2 | VectorStore | ChromaDB raises ValueError when upserting chunks with empty metadata `{}`. | `VectorStore.upsert` passed `{}` when `chunk.metadata` was empty, which Chroma rejects. | Include `document_id` and `chunk_index` from `Chunk` in the upsert metadata dict so it is never empty. |
 
 ## Severity Levels
 

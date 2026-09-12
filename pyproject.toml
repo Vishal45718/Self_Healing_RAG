@@ -30,3 +30,9 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["src*", "config*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: marks tests as external integration tests",
+]

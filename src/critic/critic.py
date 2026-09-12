@@ -1,0 +1,179 @@
+"""Critic component for Self-Healing RAG (Task 2.4).
+
+Evaluates retrieval sufficiency and generation groundedness using structured output.
+"""
+
+import json
+import logging
+import re
+from typing import Any, Dict, List, Optional, Union
+
+from huggingface_hub import InferenceClient
+from pydantic import ValidationError
+
+from config.settings import settings
+from src.critic.prompts import format_critic_messages
+from src.critic.schema import CriticEvaluation, CriticFailureReason, CriticVerdict
+from src.schema import RetrievalResult
+
+logger = logging.getLogger(__name__)
+
+
+def _extract_json(text: str) -> Dict[str, Any]:
+    """Extract and parse JSON object from model output text.
+
+    Handles optional markdown code fences and extraneous leading/trailing text.
+    """
+    clean_text = text.strip()
+
+    # If wrapped in markdown code fence, extract the content
+    code_block_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", clean_text)
+    if code_block_match:
+        clean_text = code_block_match.group(1).strip()
+
+    # Find the outermost JSON object if there's surrounding text
+    start_idx = clean_text.find("{")
+    end_idx = clean_text.rfind("}")
+    if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+        clean_text = clean_text[start_idx : end_idx + 1]
+
+    try:
+        return json.loads(clean_text)
+    except Exception as e:
+        raise ValueError(f"Critic output could not be parsed as valid JSON: {text}") from e
+
+
+class Critic:
+    """Evaluates whether retrieved evidence is sufficient and generated answers are grounded."""
+
+    def __init__(
+        self,
+        client: Optional[InferenceClient] = None,
+        model_id: Optional[str] = None,
+        provider: Optional[str] = None,
+        token: Optional[str] = None,
+        temperature: float = 0.0,
+    ) -> None:
+        """Initialise the Critic.
+
+        Args:
+            client: Optional pre-configured InferenceClient (useful for testing).
+            model_id: Hugging Face model ID. Defaults to ``settings.llm_model_id``.
+            provider: Hugging Face provider. Defaults to ``settings.hf_provider``.
+            token: Hugging Face API token. Defaults to ``settings.hf_token``.
+            temperature: Sampling temperature. Defaults to 0.0 for deterministic evaluation.
+        """
+        self.model_id = model_id if model_id is not None else settings.llm_model_id
+        self.provider = provider if provider is not None else settings.hf_provider
+        self.token = token if token is not None else settings.hf_token
+        self.temperature = temperature
+
+        if client is not None:
+            self._client = client
+        else:
+            if not self.token:
+                logger.warning("No Hugging Face token provided or found in settings.")
+                self._client = None
+            else:
+                self._client = InferenceClient(
+                    provider=self.provider,  # type: ignore[arg-type]
+                    token=self.token,
+                )
+
+    def _get_client(self) -> InferenceClient:
+        """Return the active InferenceClient or raise ValueError if credentials missing."""
+        if self._client is not None:
+            return self._client
+
+        if not self.token:
+            raise ValueError(
+                "Hugging Face API token is required for critic evaluation but not configured. "
+                "Set HF_TOKEN in your environment or pass a configured client."
+            )
+
+        self._client = InferenceClient(
+            provider=self.provider,  # type: ignore[arg-type]
+            token=self.token,
+        )
+        return self._client
+
+    def evaluate(
+        self,
+        query: str,
+        context: Union[List[RetrievalResult], str],
+        answer: str,
+    ) -> CriticEvaluation:
+        """Evaluate the generated answer against the retrieved evidence.
+
+        Args:
+            query: The user query.
+            context: The retrieved context evidence.
+            answer: The generated answer to evaluate.
+
+        Returns:
+            CriticEvaluation containing verdict, failure_reason, sufficiency, groundedness,
+            unsupported claims, and reasoning.
+
+        Raises:
+            ValueError: If query or answer is empty, or if critic output fails validation.
+            RuntimeError: If the inference call fails.
+        """
+        if not isinstance(query, str) or not query.strip():
+            raise ValueError("Query must be a non-empty string.")
+        if not isinstance(answer, str) or not answer.strip():
+            raise ValueError("Answer must be a non-empty string.")
+
+        client = self._get_client()
+        messages = format_critic_messages(query=query, context=context, answer=answer)
+
+        logger.debug(
+            "Invoking Critic with model '%s' via provider '%s'.",
+            self.model_id,
+            self.provider,
+        )
+
+        try:
+            response = client.chat_completion(
+                messages=messages,  # type: ignore[arg-type]
+                model=self.model_id,
+                temperature=self.temperature,
+            )
+        except Exception as e:
+            logger.error("Critic inference failure on model '%s': %s", self.model_id, e)
+            raise RuntimeError(f"Critic inference failed for model '{self.model_id}': {e}") from e
+
+        if not response or not hasattr(response, "choices") or not response.choices:
+            raise ValueError("Malformed or empty response received from critic inference.")
+
+        content = response.choices[0].message.content
+        if not content or not content.strip():
+            raise ValueError("Critic returned empty response content.")
+
+        parsed_json = _extract_json(content)
+
+        try:
+            evaluation = CriticEvaluation.model_validate(parsed_json)
+        except ValidationError as e:
+            logger.error("Critic response failed schema validation: %s", e)
+            raise ValueError(f"Critic response failed schema validation: {e}") from e
+
+        # Normalize verdict and failure_reason consistency
+        if evaluation.is_retrieval_sufficient and evaluation.is_generation_grounded:
+            if evaluation.verdict != CriticVerdict.PASS:
+                evaluation.verdict = CriticVerdict.PASS
+            evaluation.failure_reason = None
+        else:
+            if evaluation.verdict != CriticVerdict.FAIL:
+                evaluation.verdict = CriticVerdict.FAIL
+            if not evaluation.failure_reason:
+                if not evaluation.is_retrieval_sufficient:
+                    evaluation.failure_reason = CriticFailureReason.RETRIEVAL_INSUFFICIENT
+                else:
+                    evaluation.failure_reason = CriticFailureReason.GENERATION_UNGROUNDED
+
+        logger.info(
+            "Critic evaluation completed: verdict=%s, failure_reason=%s",
+            evaluation.verdict.value,
+            evaluation.failure_reason.value if evaluation.failure_reason else "None",
+        )
+        return evaluation
