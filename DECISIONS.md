@@ -116,3 +116,17 @@ This document records the architectural and technology decisions made for the Se
   - *Hashing queries and storing a set*: Correct but slightly more complex serialization through TypedDict state.
   - *Comparing only the previous query*: Only prevents immediate repetition, not repetition of earlier queries in a multi-step loop.
 - **Decision & Rationale**: Add `query_history: List[str]` to `GraphState`, seeded with `[original_query]` at invocation. `reformulate_node` checks that the LLM's candidate is not already in `query_history` before accepting it. If it is a duplicate or empty, it falls back to `original_query`. The LLM also receives the full history in its prompt (via `format_reformulate_messages`), reducing the chance of repetition at the source.
+
+---
+
+## D-012: Evaluation Harness Architecture & Strict Recovery Metrics (Phase 7)
+- **Status**: Accepted
+- **Context**: An objective, measurable framework was required to compare Baseline RAG (single-pass) versus Self-Healing RAG (iterative feedback loop) without modifying core Phase 0–5 logic or introducing flaky live dependencies into CI.
+- **Alternatives Considered**:
+  - *Third-party RAG evaluation frameworks (e.g. Ragas, TruLens)*: Feature-rich, but introduces heavy external dependencies, proprietary API expectations, and potential version conflicts.
+  - *Counting graph termination as recovery success*: Inaccurate; reaching max retries without a PASS/ABSTAIN verdict is a failed recovery, not a success.
+- **Decision & Rationale**: Built a native, lightweight `EvaluationRunner` and `BaselineRAG` harness that shares identical retriever, generator, and critic instances. Defined explicit mathematical metrics:
+  1. *Recovery Success*: Strictly defined as queries that failed on attempt 1 (`retries > 0`), were routed to recovery, and concluded with a verified passing or safely abstaining verdict.
+  2. *Correct Abstention*: Distinguishes safe deferral on unanswerable/out-of-domain queries from ungrounded hallucinations.
+  3. *Overhead Ratios*: Captures wall-clock latency (ms), retries, and total LLM invocations per query.
+  All evaluation harness components run deterministically with mocks in unit tests and serialize results to structured JSON and Markdown reports.

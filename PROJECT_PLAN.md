@@ -14,6 +14,7 @@ This document tracks the phased milestones, tasks, acceptance criteria, and comp
 | **Phase 3** | **LangGraph Self-Healing Feedback Workflow** | **COMPLETED** |
 | **Phase 4** | **End-to-End Evaluation & Hardening** | **COMPLETED** |
 | **Phase 5** | **Reformulation & Strict Regeneration** | **COMPLETED** |
+| **Phase 7** | **Evaluation & Baseline Comparison** | **COMPLETED** |
 
 ---
 
@@ -264,3 +265,54 @@ Guarantee no query is repeated and that `generation_ungrounded` never triggers r
 - [x] No new phases implemented; no existing components redesigned
 - [x] `DECISIONS.md` updated with D-010
 - [x] No secrets leaked or printed
+
+---
+
+## Phase 7: Evaluation & Baseline Comparison
+
+### Objectives
+Objectively evaluate and compare the performance, quality, and cost overhead of Baseline RAG
+versus Self-Healing RAG across a reproducible evaluation dataset covering direct, vague,
+and unanswerable queries.
+
+### Tasks & Status
+- [x] **7.1 Baseline RAG Runner Component (`src/baseline/baseline_rag.py`)**
+  - [x] Implemented `BaselineRAG` single-pass retrieval and generation pipeline.
+  - [x] Accepts same `Retriever`, `Generator`, and `Critic` components.
+  - [x] Structured output via `BaselineResult`.
+  - [x] 7 unit tests in `tests/test_baseline.py` — all passing.
+
+- [x] **7.2 Evaluation Schema & Dataset (`src/evaluation/schema.py`, `src/evaluation/dataset.py`)**
+  - [x] Pydantic schemas for `EvalSample`, `ScenarioType`, `ExpectedBehavior`, `EvalExecutionResult`, `SystemMetrics`, `EvaluationReport`.
+  - [x] Curated default evaluation corpus (3 documents) and benchmark dataset (9 queries: 3 direct, 3 vague/reformulation, 3 unanswerable).
+  - [x] JSON dataset loader and validator `load_dataset_from_json()`.
+
+- [x] **7.3 Evaluation Engine & Metrics Calculator (`src/evaluation/runner.py`, `src/evaluation/metrics.py`)**
+  - [x] `EvaluationRunner` coordinates side-by-side execution on identical vector store.
+  - [x] Metrics distinguish: critic pass, groundedness, retrieval sufficiency, correct abstention, recovery success, reformulation success, average retries/iterations, latency (ms), and total LLM calls.
+  - [x] Strict recovery condition: recovery is only counted as successful if an initial failure was subsequently resolved to a PASS/ABSTAIN matching expected behavior.
+  - [x] `calculate_metric_deltas()` computes comparative deltas and overhead ratios.
+
+- [x] **7.4 Result Serialization & Summary Reporter (`src/evaluation/report.py`, `src/evaluation/run_eval.py`)**
+  - [x] `save_report_json()` and `load_report_json()` for structured evaluation persistence.
+  - [x] `generate_markdown_report()` generates clean comparison table with impact summary.
+  - [x] CLI runner script `src/evaluation/run_eval.py` for standalone benchmark execution.
+
+- [x] **7.5 Evaluation Harness Unit Tests (`tests/test_evaluation.py`)**
+  - [x] Dataset loading tests, custom JSON tests, error handling tests.
+  - [x] Deterministic math tests for metric formulas and recovery success conditions.
+  - [x] Side-by-side runner execution tests with mocked components.
+  - [x] Report generation and JSON serialization round-trip tests.
+  - [x] 12 tests in `tests/test_evaluation.py` — all passing.
+
+---
+
+## Definition of Done (Phase 7)
+
+- [x] Baseline RAG and Self-Healing RAG execute against identical vector store collections
+- [x] Metrics accurately distinguish critic pass, groundedness, abstention, recovery, retries, latency, and LLM calls
+- [x] 19 new Phase 7 tests across `tests/test_baseline.py` and `tests/test_evaluation.py` — all passing
+- [x] Full regression suite: **114 passed, 1 skipped, 0 failed**
+- [x] Structured JSON serialization and formatted Markdown reporting implemented
+- [x] Zero secret leakage or credential exposure
+- [x] `DECISIONS.md` updated with D-012
