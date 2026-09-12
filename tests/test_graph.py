@@ -26,8 +26,8 @@ def mock_generator():
     # Mocking generate method
     generator.generate.return_value = GenerationResult(
         answer="This is a generated answer based on context.",
-        model="mock-model",
-        usage={"total_tokens": 10}
+        model_id="mock-model",
+        provider="mock-provider"
     )
     
     # Mocking _client for reformulation
@@ -108,31 +108,37 @@ def test_graph_fail_and_recover(mock_retriever, mock_generator, mock_critic):
     mock_generator._client.chat_completion.assert_called_once()
 
 def test_graph_max_retries_reached(mock_retriever, mock_generator, mock_critic):
-    """Test scenario: Critic fails continuously until max retries reached."""
-    
+    """Test scenario: Critic fails continuously with retrieval_insufficient until max retries reached.
+
+    NOTE (Phase 5): RETRIEVAL_INSUFFICIENT routes to reformulate → retrieve,
+    so retrieve.call_count equals max_retries.  GENERATION_UNGROUNDED routes
+    to regenerate (no re-retrieval); that path is tested separately.
+    """
+
     fail_eval = CriticEvaluation(
         verdict=CriticVerdict.FAIL,
-        failure_reason=CriticFailureReason.GENERATION_UNGROUNDED,
-        is_retrieval_sufficient=True,
-        is_generation_grounded=False,
-        reasoning="Ungrounded claim."
+        failure_reason=CriticFailureReason.RETRIEVAL_INSUFFICIENT,
+        is_retrieval_sufficient=False,
+        is_generation_grounded=True,
+        reasoning="Retrieval always fails.",
     )
     # Always fail
     mock_critic.evaluate.return_value = fail_eval
-    
+
     rag = SelfHealingRAG(mock_retriever, mock_generator, mock_critic)
-    
+
     # Run the graph
     state = rag.invoke("What is X?")
-    
+
     # Should end at max_retries (default 3 from settings)
     assert state["iterations"] == rag.max_retries
     assert state["critic_evaluation"].verdict == CriticVerdict.FAIL
-    
-    # Verify calls
+
+    # RETRIEVAL_INSUFFICIENT reformulates → re-retrieves on every failed iteration
     assert mock_retriever.retrieve.call_count == rag.max_retries
     assert mock_generator.generate.call_count == rag.max_retries
     assert mock_critic.evaluate.call_count == rag.max_retries
+    # reformulate is called (max_retries - 1) times (no reformulation after last critic check)
     assert mock_generator._client.chat_completion.call_count == rag.max_retries - 1
 
 def test_reformulation_fallback(mock_retriever, mock_generator, mock_critic):

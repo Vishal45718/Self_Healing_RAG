@@ -86,3 +86,33 @@ This document records the architectural and technology decisions made for the Se
   - *Monkeypatching global SDK functions*: Brittle and prone to test order dependency issues.
   - *Separate MockGenerator / MockCritic classes*: Duplicates logic and causes interface divergence.
 - **Decision & Rationale**: `Generator` and `Critic` constructors accept an optional `client: Optional[InferenceClient] = None`. When omitted in production, they instantiate the official `huggingface_hub.InferenceClient` using centralized `config.settings`. When provided in tests, a mock client can simulate completions and errors deterministically.
+
+---
+
+## D-009: Separation of Retrieval Failure and Correct Abstention
+- **Status**: Accepted
+- **Context**: The `Critic` node receives a generated answer and verifies whether it is grounded in the provided retrieved context. However, the Generator may output a "safe" abstention response (e.g., "The provided context is insufficient") if the retrieval was empty or irrelevant.
+- **Alternatives Considered**:
+  - *Treating abstention as a retrieval failure*: Maps to `FAIL/retrieval_insufficient`, which might trigger a generic reformulation loop without recognizing the model's safe behavior.
+  - *Treating abstention as hallucination*: Inaccurate, as the model did exactly what it was instructed to do (not hallucinate).
+- **Decision & Rationale**: Introduce a distinct `ABSTAIN` verdict in the `CriticVerdict` schema alongside `PASS` and `FAIL`. This ensures the system explicitly recognizes when the LLM safely defers due to lack of evidence, enabling distinct behaviors (e.g. fast-failing the graph gracefully) instead of conflating it with hallucination or standard retrieval gaps.
+
+---
+
+## D-010: Dedicated `recover_node` as the Single Recovery Entry Point (Phase 5)
+- **Status**: Accepted
+- **Context**: Phase 5 adds two distinct recovery actions — query reformulation (for `retrieval_insufficient`) and strict answer regeneration (for `generation_ungrounded`). A clean dispatch mechanism was needed.
+- **Alternatives Considered**:
+  - *Direct conditional edges from `critic` to both `reformulate` and `regenerate`*: Structurally simpler but conflates routing logic into `should_continue`, which already handles the PASS/FAIL/max-retries decision. Two distinct concepts in one function.
+  - *Inline dispatch inside `should_continue`*: Would require `should_continue` to return 4 literals (`"end"`, `"reformulate"`, `"regenerate"`, `"recover"`), violating single-responsibility.
+- **Decision & Rationale**: Introduce a lightweight `recover_node` that performs no state mutation but serves as a clean separation point. `should_continue` decides *whether* to recover (FAIL + below max_retries) and `route_recovery` decides *how* to recover (based on `failure_reason`). This keeps each function focused and testable in isolation. `route_recovery` explicitly raises `ValueError` on `None` or unknown failure reasons — no silent fallbacks.
+
+---
+
+## D-011: query_history for Reformulation Deduplication (Phase 5)
+- **Status**: Accepted
+- **Context**: The reformulation loop could theoretically produce the same query the LLM had already tried, leading to infinite loops with identical retrieval results.
+- **Alternatives Considered**:
+  - *Hashing queries and storing a set*: Correct but slightly more complex serialization through TypedDict state.
+  - *Comparing only the previous query*: Only prevents immediate repetition, not repetition of earlier queries in a multi-step loop.
+- **Decision & Rationale**: Add `query_history: List[str]` to `GraphState`, seeded with `[original_query]` at invocation. `reformulate_node` checks that the LLM's candidate is not already in `query_history` before accepting it. If it is a duplicate or empty, it falls back to `original_query`. The LLM also receives the full history in its prompt (via `format_reformulate_messages`), reducing the chance of repetition at the source.

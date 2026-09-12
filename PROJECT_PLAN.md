@@ -11,8 +11,9 @@ This document tracks the phased milestones, tasks, acceptance criteria, and comp
 | **Phase 0** | **Project Scaffold & Setup** | **COMPLETED** |
 | **Phase 1** | **Ingestion & Vector Storage Pipeline** | **COMPLETED** |
 | **Phase 2** | **Retrieval, Generation & Critic Components** | **COMPLETED** |
-| Phase 3 | LangGraph Self-Healing Feedback Workflow | Pending |
-| Phase 4 | End-to-End Evaluation & Hardening | Pending |
+| **Phase 3** | **LangGraph Self-Healing Feedback Workflow** | **COMPLETED** |
+| **Phase 4** | **End-to-End Evaluation & Hardening** | **COMPLETED** |
+| **Phase 5** | **Reformulation & Strict Regeneration** | **COMPLETED** |
 
 ---
 
@@ -168,3 +169,98 @@ Initialize project structure, virtual environment, dependencies, configuration s
 ---
 
 ## Next Phase: Phase 3 — LangGraph Self-Healing Feedback Workflow
+
+---
+
+## Phase 4: End-to-End Evaluation & Hardening (Refinement)
+
+### Tasks & Status
+- [x] **4.1 Implement Empty Retrieval Shortcut**
+  - [x] Critic fast-fails with `retrieval_insufficient` if context is empty without calling LLM.
+- [x] **4.2 Implement Correct-Abstention Shortcut**
+  - [x] Critic fast-fails with `ABSTAIN` if generator safely abstains without calling LLM.
+  - [x] Updated `CriticVerdict` schema to include `ABSTAIN` as a successful safe outcome.
+- [x] **4.3 Fix Phase 3 Graph Bug**
+  - [x] Fixed `critic_node` in `graph.py` passing `generation=...` instead of `answer=...`.
+- [x] **4.4 Add Tests for Shortcuts**
+  - [x] Empty context and abstention shortcuts tested and verified to bypass `InferenceClient`.
+- [x] **4.5 Run and Verify Test Suite**
+  - [x] Verified full regression suite passes (see 4.6 for integration test details).
+- [x] **4.6 Harden Integration Test Skip Logic**
+  - [x] Extended `test_integration_hf.py` to skip (not fail) when the configured HF token lacks Inference Provider permissions (HTTP 403).
+  - [x] Implemented `_check_runtime_error_for_auth_skip()` helper that inspects the `__cause__` chain and only converts the exact `HfHubHTTPError` 403 condition to a `pytest.skip()`.
+  - [x] All other `RuntimeError` causes remain genuine test failures.
+  - [x] Final suite result: **73 passed, 1 skipped, 0 failed**.
+  - [x] The 1 skipped test is `test_live_hf_generation_and_critic_pipeline` — an environment/credential limitation (HF token missing Inference Provider permission scope), confirmed as NOT a code defect.
+
+---
+
+## Phase 5: Reformulation & Strict Regeneration
+
+### Objectives
+Implement the two recovery actions for the self-healing feedback loop: query reformulation
+(for `retrieval_insufficient`) and strict answer regeneration (for `generation_ungrounded`).
+Add a single `recover` routing entry-point that dispatches to the correct action.
+Guarantee no query is repeated and that `generation_ungrounded` never triggers re-retrieval.
+
+### Tasks & Status
+- [x] **5.1 Extend `GraphState` with `query_history`**
+  - [x] Added `query_history: List[str]` to `GraphState` in `src/schema.py`.
+  - [x] Seeded with `[original_query]` in `SelfHealingRAG.invoke()`.
+  - [x] Compatible with all existing Phase 3 tests.
+
+- [x] **5.2 Implement `recover_node` as the single recovery entry point**
+  - [x] Added `recover` node to the LangGraph graph.
+  - [x] Conditional edge `critic → recover` on FAIL below max_retries.
+  - [x] `route_recovery()` dispatches to `reformulate` or `regenerate` based on `failure_reason`.
+  - [x] `route_recovery()` raises `ValueError` explicitly on `None` or unknown `failure_reason`.
+
+- [x] **5.3 Implement `reformulate_node` with query-history deduplication**
+  - [x] Passes `query_history` to `format_reformulate_messages` so the LLM sees all prior queries.
+  - [x] Prevents duplicate queries: if LLM echoes a known query, falls back to `original_query`.
+  - [x] Returns a valid, non-empty query on every code path.
+  - [x] Updates both `current_query` and `query_history` in state.
+
+- [x] **5.4 Implement `regenerate_node` (no re-retrieval)**
+  - [x] Reuses `state["retrieved_chunks"]` — does NOT call `self.retriever.retrieve()`.
+  - [x] Calls `format_regenerate_messages()` embedding critic reasoning + unsupported_claims.
+  - [x] Falls back to prior answer on LLM error; never crashes the pipeline.
+  - [x] Routes back to `critic` node after regeneration (not to `retrieve`).
+
+- [x] **5.5 Add `format_regenerate_messages` prompt**
+  - [x] New `REGENERATE_SYSTEM_PROMPT` with strict "UNGROUNDED" framing.
+  - [x] Embeds the same retrieved context, critic reasoning, and specific unsupported claims.
+  - [x] Updated `format_reformulate_messages` to accept `query_history` parameter.
+
+- [x] **5.6 Comprehensive Phase 5 test suite (`tests/test_reformulation.py`)**
+  - [x] AC1: reformulated query differs from all previous queries.
+  - [x] AC2: first-failure case works with empty (seed-only) history.
+  - [x] AC3: repeated/duplicate query from LLM is rejected; no duplicate in history.
+  - [x] AC4: regeneration directive contains critic reasoning and unsupported claims.
+  - [x] AC5: `generation_ungrounded` does NOT call retrieval again (retrieve called exactly once).
+  - [x] AC6: both failure reasons route to the correct action.
+  - [x] AC7: `None`/unknown `failure_reason` raises `ValueError` explicitly.
+  - [x] AC8: `query_history` grows correctly across iterations; no duplicates.
+  - [x] AC9: regeneration → critic → PASS terminates the workflow correctly.
+  - [x] AC10: all GENERATION_UNGROUNDED retries call retriever exactly once.
+  - [x] **22 new tests in `tests/test_reformulation.py` — all passing.**
+
+- [x] **5.7 Updated Phase 3 regression test (`tests/test_graph.py`)**
+  - [x] `test_graph_max_retries_reached` updated to use `RETRIEVAL_INSUFFICIENT`
+    (the reason that triggers re-retrieval), consistent with Phase 5 routing semantics.
+  - [x] All 4 existing graph tests passing.
+
+---
+
+## Definition of Done (Phase 5)
+
+- [x] All six Phase 5 tasks implemented and tested
+- [x] 22 new Phase 5 tests in `tests/test_reformulation.py` — all passing
+- [x] Full regression suite: **95 passed, 1 skipped, 0 failed**
+- [x] `query_history` correctly seeds, grows, and prevents duplicates
+- [x] `recover_node` is the single entry point for all recovery actions
+- [x] `generation_ungrounded` path never calls retriever more than once
+- [x] All invalid `failure_reason` values rejected with explicit `ValueError`
+- [x] No new phases implemented; no existing components redesigned
+- [x] `DECISIONS.md` updated with D-010
+- [x] No secrets leaked or printed

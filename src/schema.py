@@ -40,10 +40,17 @@ from typing import TypedDict, Optional, List
 from src.critic.schema import CriticEvaluation
 
 class GraphState(TypedDict):
-    """Represents the state of the self-healing RAG workflow."""
+    """Represents the state of the self-healing RAG workflow.
+
+    Phase 5 additions:
+        query_history: Ordered list of all queries attempted so far (original +
+            all reformulations).  Used by the Reformulator to guarantee no query
+            is ever repeated.
+    """
     original_query: str
     current_query: str
     retrieved_chunks: List[RetrievalResult]
     generation: Optional[str]
     critic_evaluation: Optional[CriticEvaluation]
     iterations: int
+    query_history: List[str]

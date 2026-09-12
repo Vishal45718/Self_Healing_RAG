@@ -5,7 +5,7 @@ from config.settings import Settings
 
 def test_default_settings():
     """Verify default settings values."""
-    settings = Settings()
+    settings = Settings(_env_file=None)
     assert settings.hf_provider == "together"
     assert settings.llm_model_id == "meta-llama/Llama-3.3-70B-Instruct"
     assert settings.embedding_model_id == "sentence-transformers/all-MiniLM-L6-v2"

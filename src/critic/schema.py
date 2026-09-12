@@ -10,6 +10,7 @@ class CriticVerdict(str, Enum):
 
     PASS = "PASS"
     FAIL = "FAIL"
+    ABSTAIN = "ABSTAIN"
 
 
 class CriticFailureReason(str, Enum):
@@ -23,7 +24,7 @@ class CriticEvaluation(BaseModel):
     """Structured output of a Critic evaluation."""
 
     verdict: CriticVerdict = Field(
-        description="Overall verdict: PASS if both sufficient and grounded, else FAIL."
+        description="Overall verdict: PASS if both sufficient and grounded, FAIL if hallucinated or insufficient, ABSTAIN if safely refused to answer."
     )
     failure_reason: Optional[CriticFailureReason] = Field(
         default=None,

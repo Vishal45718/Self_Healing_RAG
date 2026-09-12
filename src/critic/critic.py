@@ -123,6 +123,40 @@ class Critic:
         if not isinstance(answer, str) or not answer.strip():
             raise ValueError("Answer must be a non-empty string.")
 
+        if not context:
+            logger.info("Shortcut: Empty context, returning retrieval_insufficient.")
+            return CriticEvaluation(
+                verdict=CriticVerdict.FAIL,
+                failure_reason=CriticFailureReason.RETRIEVAL_INSUFFICIENT,
+                is_retrieval_sufficient=False,
+                is_generation_grounded=True,
+                unsupported_claims=[],
+                reasoning="Context is empty, automatic retrieval failure.",
+            )
+
+        abstention_keywords = [
+            "i don't know",
+            "i cannot answer",
+            "does not contain sufficient information",
+            "provided context does not",
+            "no information is provided",
+            "i do not have enough information",
+            "i can't answer",
+            "insufficient information",
+            "does not mention"
+        ]
+        ans_lower = answer.lower()
+        if any(k in ans_lower for k in abstention_keywords):
+            logger.info("Shortcut: Generator abstained, returning ABSTAIN verdict.")
+            return CriticEvaluation(
+                verdict=CriticVerdict.ABSTAIN,
+                failure_reason=None,
+                is_retrieval_sufficient=False,
+                is_generation_grounded=True,
+                unsupported_claims=[],
+                reasoning="The generator safely abstained from answering due to insufficient context.",
+            )
+
         client = self._get_client()
         messages = format_critic_messages(query=query, context=context, answer=answer)
 
@@ -158,7 +192,9 @@ class Critic:
             raise ValueError(f"Critic response failed schema validation: {e}") from e
 
         # Normalize verdict and failure_reason consistency
-        if evaluation.is_retrieval_sufficient and evaluation.is_generation_grounded:
+        if evaluation.verdict == CriticVerdict.ABSTAIN:
+            evaluation.failure_reason = None
+        elif evaluation.is_retrieval_sufficient and evaluation.is_generation_grounded:
             if evaluation.verdict != CriticVerdict.PASS:
                 evaluation.verdict = CriticVerdict.PASS
             evaluation.failure_reason = None

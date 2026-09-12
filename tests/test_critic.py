@@ -66,8 +66,8 @@ def test_critic_insufficient_evidence_fails_with_retrieval_insufficient():
         answer="The provided context does not mention GPU requirements.",
     )
 
-    assert evaluation.verdict == CriticVerdict.FAIL
-    assert evaluation.failure_reason == CriticFailureReason.RETRIEVAL_INSUFFICIENT
+    assert evaluation.verdict == CriticVerdict.ABSTAIN
+    assert evaluation.failure_reason is None
     assert evaluation.is_retrieval_sufficient is False
 
 
@@ -149,7 +149,7 @@ def test_critic_schema_validation_error():
 
 def test_critic_missing_credentials_raises_value_error():
     """Critic raises ValueError when token is missing and no client is supplied."""
-    critic = Critic(client=None, token=None)
+    critic = Critic(client=None, token="")
     with pytest.raises(ValueError, match="Hugging Face API token is required"):
         critic.evaluate(query="Q", context="C", answer="A")
 
@@ -163,3 +163,39 @@ def test_critic_invalid_inputs_raise_value_error(invalid_arg):
 
     with pytest.raises(ValueError, match="Answer must be a non-empty string"):
         critic.evaluate(query="Valid Q", context="C", answer=invalid_arg)
+
+def test_critic_empty_context_shortcut():
+    """Empty context immediately returns retrieval_insufficient without calling LLM."""
+    mock_client = MagicMock()
+    critic = Critic(client=mock_client)
+    
+    evaluation = critic.evaluate(
+        query="What is X?",
+        context=[],
+        answer="I do not know."
+    )
+    
+    assert evaluation.verdict == CriticVerdict.FAIL
+    assert evaluation.failure_reason == CriticFailureReason.RETRIEVAL_INSUFFICIENT
+    assert evaluation.is_retrieval_sufficient is False
+    assert evaluation.is_generation_grounded is True
+    # Ensure LLM was not called
+    mock_client.chat_completion.assert_not_called()
+
+def test_critic_abstention_shortcut():
+    """Abstention answer immediately returns ABSTAIN without calling LLM."""
+    mock_client = MagicMock()
+    critic = Critic(client=mock_client)
+    
+    evaluation = critic.evaluate(
+        query="What is X?",
+        context="Some context that doesn't mention X.",
+        answer="I cannot answer based on the provided context."
+    )
+    
+    assert evaluation.verdict == CriticVerdict.ABSTAIN
+    assert evaluation.failure_reason is None
+    assert evaluation.is_retrieval_sufficient is False
+    assert evaluation.is_generation_grounded is True
+    # Ensure LLM was not called
+    mock_client.chat_completion.assert_not_called()

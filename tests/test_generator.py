@@ -78,7 +78,7 @@ def test_successful_generation_with_mocked_client():
 
 def test_missing_credentials_raises_value_error():
     """Generator raises ValueError when token is missing and no client is supplied."""
-    generator = Generator(client=None, token=None)
+    generator = Generator(client=None, token="")
     with pytest.raises(ValueError, match="Hugging Face API token is required"):
         generator.generate(query="Valid query", context="Some non-empty context")
 
