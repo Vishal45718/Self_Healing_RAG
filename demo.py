@@ -239,7 +239,7 @@ def run_demo(is_live: bool = False) -> None:
 
     # Step 2: Initialize components
     if is_live:
-        print("2. Connecting to live Hugging Face Inference API...")
+        print("2. Connecting to live Google Gemini API...")
         retriever, generator, critic = build_live_components(vector_store, embedder)
     else:
         print("2. Wiring deterministic offline simulator...")
