@@ -56,7 +56,7 @@ def _check_runtime_error_for_auth_skip(exc: RuntimeError) -> None:
 )
 def test_live_hf_generation_and_critic_pipeline():
     """Verify live generation and critic against the configured Hugging Face provider."""
-    generator = Generator()
+    generator = Generator(provider="huggingface")
     query = "What is the capital of France?"
     context = "France is a country in Western Europe. Its capital and largest city is Paris."
 
@@ -71,7 +71,7 @@ def test_live_hf_generation_and_critic_pipeline():
     assert "Paris" in gen_result.answer
 
     # 2. Test live critic on the generated answer
-    critic = Critic()
+    critic = Critic(provider="huggingface")
     try:
         crit_result = critic.evaluate(query=query, context=context, answer=gen_result.answer)
     except RuntimeError as exc:

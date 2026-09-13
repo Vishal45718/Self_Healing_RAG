@@ -18,6 +18,13 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # LLM Provider Selection ("gemini" or "huggingface")
+    llm_provider: str = "gemini"
+
+    # Gemini Settings
+    gemini_api_key: Optional[str] = None
+    gemini_model_id: str = "gemini-3.6-flash"
+
     # Hugging Face Settings
     hf_token: Optional[str] = None
     hf_provider: str = "together"
@@ -38,6 +45,13 @@ class Settings(BaseSettings):
     def chroma_directory(self) -> Path:
         """Return the resolved Chroma persistence path."""
         return Path(self.chroma_path).resolve()
+
+    @property
+    def active_model_id(self) -> str:
+        """Return the active model ID based on the configured provider."""
+        if self.llm_provider.lower() == "gemini":
+            return self.gemini_model_id
+        return self.llm_model_id
 
 
 # Centralized settings instance

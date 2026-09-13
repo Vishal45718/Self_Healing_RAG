@@ -77,10 +77,16 @@ def test_successful_generation_with_mocked_client():
 
 
 def test_missing_credentials_raises_value_error():
-    """Generator raises ValueError when token is missing and no client is supplied."""
+    """Generator raises ValueError when credentials are missing and no client is supplied."""
+    # Default provider is Gemini
     generator = Generator(client=None, token="")
-    with pytest.raises(ValueError, match="Hugging Face API token is required"):
+    with pytest.raises(ValueError, match="Gemini API key is required"):
         generator.generate(query="Valid query", context="Some non-empty context")
+
+    # Explicit Hugging Face provider
+    hf_generator = Generator(client=None, provider="huggingface", token="")
+    with pytest.raises(ValueError, match="Hugging Face API token is required"):
+        hf_generator.generate(query="Valid query", context="Some non-empty context")
 
 
 def test_empty_context_handling_returns_insufficient_message_safely():

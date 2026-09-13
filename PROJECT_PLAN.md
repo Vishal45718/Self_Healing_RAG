@@ -17,6 +17,7 @@ This document tracks the phased milestones, tasks, acceptance criteria, and comp
 | **Phase 7** | **Evaluation & Baseline Comparison** | **COMPLETED** |
 | **Phase 8** | **Final Hardening & Audit** | **COMPLETED** |
 | **Phase 9** | **Documentation, Demo, and Resume/GitHub Polish** | **COMPLETED** |
+| **Phase 10** | **Google Gemini Live LLM Provider Integration** | **COMPLETED** |
 
 ---
 
@@ -405,11 +406,51 @@ Finalize end-user and developer documentation, implement an interactive and dete
 
 ---
 
-## Definition of Done (Phase 9 & Project Completion)
+---
 
-- [x] All Phase 9 documentation, demo, and hygiene tasks completed
-- [x] Complete pytest suite executed: 120 passed, 1 skipped, 0 failed
-- [x] `README.md`, `ARCHITECTURE.md`, `demo.py`, `LICENSE`, and `.gitignore` polished and GitHub-ready
-- [x] Project plan marked fully complete with zero unresolved blockers or speculative phases
+## Phase 10: Google Gemini Live LLM Provider Integration
+
+### Objectives
+Integrate Google Gemini API via official `google-genai` SDK as the default live LLM provider, establish a unified LLM client abstraction layer across Gemini and Hugging Face providers, and update integration tests, documentation, and demo capabilities.
+
+### Tasks & Status
+
+- [x] **10.1 Dependency and Configuration Management**
+  - [x] Added `google-genai>=2.0.0` dependency to `pyproject.toml`.
+  - [x] Updated `config/settings.py` with `llm_provider: str = "gemini"`, `gemini_api_key`, `gemini_model_id = "gemini-3.6-flash"`, and `active_model_id` property.
+  - [x] Updated `.env.example` with Gemini configuration templates.
+  - [x] Tested default settings and overrides in `tests/test_settings.py`.
+
+- [x] **10.2 LLM Client Abstraction Layer**
+  - [x] Created `src/generation/llm_client.py` defining `BaseLLMClient`, `GeminiLLMClient`, `HFInferenceAdapter`, and `get_llm_client(...)` factory.
+  - [x] Implemented standard `ChatCompletionResponse` compatible with existing `InferenceClient` response interfaces.
+  - [x] Re-exported abstraction components in `src/generation/__init__.py`.
+  - [x] Added 7 deterministic unit tests in `tests/test_llm_client.py`.
+
+- [x] **10.3 Generator, Critic, and Graph Integration**
+  - [x] Updated `Generator` and `Critic` to delegate client construction to `get_llm_client`, eliminating duplicated provider logic.
+  - [x] Wired LangGraph `reformulate_node` and `regenerate_node` to use `self.generator._client or _get_client()` with `self.generator.model_id`.
+  - [x] Updated `demo.py` to support live execution against either Google Gemini or Hugging Face based on configured provider.
+
+- [x] **10.4 Live Integration Testing & Safeguards**
+  - [x] Added `tests/test_integration_gemini.py` testing live generation and critique against Google Gemini (`gemini-3.6-flash`).
+  - [x] Handled clean skips on missing `GEMINI_API_KEY` or quota/permission limits.
+  - [x] Maintained strict zero-secret-leakage policy.
+
+- [x] **10.5 Architectural Documentation & ADRs**
+  - [x] Documented ADR D-014 in `DECISIONS.md`.
+  - [x] Updated `ARCHITECTURE.md` component taxonomy and ADR summary.
+  - [x] Updated `README.md` setup and live execution instructions.
+
+---
+
+## Definition of Done (Phase 10)
+
+- [x] Official `google-genai` SDK integrated with `gemini-3.6-flash` as default
+- [x] Unified `BaseLLMClient` abstraction eliminating duplicated provider logic in Generator and Critic
+- [x] Hugging Face / Together provider preserved with 100% backward compatibility
+- [x] All 127 offline unit and mock tests pass deterministically
+- [x] Gemini live test implemented and skips cleanly when `GEMINI_API_KEY` is not present
+- [x] Documentation (`README.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `PROJECT_PLAN.md`, `.env.example`) consistently updated
 
 

@@ -166,11 +166,20 @@ def build_offline_components(vector_store: VectorStore, embedder: LocalEmbedder)
 
 
 def build_live_components(vector_store: VectorStore, embedder: LocalEmbedder):
-    """Build components wired to live Hugging Face Inference API."""
-    if not settings.hf_token:
-        print("\n[ERROR] HF_TOKEN is not configured in .env or environment.")
-        print("Please configure HF_TOKEN to run in --live mode, or run with --offline.\n")
-        sys.exit(1)
+    """Build components wired to live LLM API (Google Gemini or Hugging Face)."""
+    provider = settings.llm_provider.lower()
+    if provider == "gemini":
+        has_key = bool(settings.gemini_api_key or os.getenv("GEMINI_API_KEY"))
+        if not has_key:
+            print("\n[ERROR] GEMINI_API_KEY is not configured in .env or environment.")
+            print("Please configure GEMINI_API_KEY to run in --live mode, or run with --offline.\n")
+            sys.exit(1)
+    else:
+        has_token = bool(settings.hf_token or os.getenv("HF_TOKEN"))
+        if not has_token:
+            print("\n[ERROR] HF_TOKEN is not configured in .env or environment.")
+            print("Please configure HF_TOKEN to run in --live mode, or run with --offline.\n")
+            sys.exit(1)
 
     retriever = Retriever(vector_store=vector_store, embedder=embedder)
     generator = Generator()
@@ -212,7 +221,8 @@ def print_state_summary(scenario_name: str, state: dict) -> None:
 # Main Interactive Runner
 # ----------------------------------------------------------------------
 def run_demo(is_live: bool = False) -> None:
-    mode_str = "LIVE (Hugging Face Inference API)" if is_live else "DETERMINISTIC OFFLINE (Local & Reproducible)"
+    provider_name = "Google Gemini API" if settings.llm_provider.lower() == "gemini" else "Hugging Face Inference API"
+    mode_str = f"LIVE ({provider_name})" if is_live else "DETERMINISTIC OFFLINE (Local & Reproducible)"
     print_section(f"SELF-HEALING RAG DEMONSTRATION  [{mode_str}]")
 
     # Step 1: Ingest Demo Corpus locally
@@ -281,7 +291,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--live",
         action="store_true",
-        help="Execute against live Hugging Face Inference API (requires HF_TOKEN)",
+        help="Execute against live LLM API (Google Gemini or Hugging Face, requires credentials)",
     )
     parser.add_argument(
         "--offline",
@@ -290,10 +300,17 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # Default to offline if live is not explicitly requested or if HF_TOKEN is unset
-    run_live = args.live and bool(settings.hf_token)
-    if args.live and not settings.hf_token:
-        print("[WARNING] --live requested but HF_TOKEN is not set. Falling back to --offline.")
+    # Default to offline if live is not explicitly requested or if credentials are unset
+    provider = settings.llm_provider.lower()
+    has_credentials = (
+        bool(settings.gemini_api_key or os.getenv("GEMINI_API_KEY"))
+        if provider == "gemini"
+        else bool(settings.hf_token or os.getenv("HF_TOKEN"))
+    )
+    run_live = args.live and has_credentials
+    if args.live and not has_credentials:
+        req_var = "GEMINI_API_KEY" if provider == "gemini" else "HF_TOKEN"
+        print(f"[WARNING] --live requested but {req_var} is not set. Falling back to --offline.")
         run_live = False
 
     run_demo(is_live=run_live)

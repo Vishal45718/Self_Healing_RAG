@@ -100,7 +100,14 @@ cp .env.example .env
 Configure `.env` with your settings:
 
 ```env
-# Hugging Face Configuration (Required for live inference)
+# LLM Provider Selection ("gemini" [default] or "huggingface")
+LLM_PROVIDER=gemini
+
+# Google Gemini Configuration (Default Provider)
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL_ID=gemini-3.6-flash
+
+# Hugging Face Configuration (Alternative Provider)
 HF_TOKEN=your_huggingface_token_here
 HF_PROVIDER=together
 LLM_MODEL_ID=meta-llama/Llama-3.3-70B-Instruct
@@ -111,7 +118,7 @@ CHROMA_PATH=./data/chroma
 MAX_RETRIES=3
 ```
 
-> **Note on Tokens**: Hugging Face Inference Providers require a user access token with the **Make calls to the serverless Inference API** permission. If no token is provided, the entire test suite and demonstration script can run in deterministic offline mode.
+> **Note on Providers**: The system defaults to **Google Gemini** (`gemini-3.6-flash`) via the official `google-genai` SDK using `GEMINI_API_KEY`. It also fully supports **Hugging Face Inference Providers** (via `HF_TOKEN` and `HF_PROVIDER`). If neither key is configured, all offline test suites and demonstration scripts execute seamlessly in deterministic offline mode.
 
 ---
 
@@ -129,7 +136,7 @@ A standalone script is included to demonstrate the three foundational scenarios 
 # Run in deterministic offline mode (100% reproducible, no API token required)
 python demo.py --offline
 
-# Run in live mode with real Hugging Face inference models (requires HF_TOKEN)
+# Run in live mode with configured LLM API (Google Gemini or Hugging Face)
 python demo.py --live
 ```
 

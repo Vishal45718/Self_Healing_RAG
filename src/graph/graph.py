@@ -170,9 +170,10 @@ class SelfHealingRAG:
 
         new_query = original_query  # safe fallback
         try:
-            response = self.generator._client.chat_completion(
+            client = self.generator._client or self.generator._get_client()
+            response = client.chat_completion(
                 messages=messages,
-                model=settings.llm_model_id,
+                model=self.generator.model_id,
                 max_tokens=150,
                 temperature=0.7,
             )
@@ -224,9 +225,10 @@ class SelfHealingRAG:
 
         new_answer = state["generation"]  # safe fallback
         try:
-            response = self.generator._client.chat_completion(
+            client = self.generator._client or self.generator._get_client()
+            response = client.chat_completion(
                 messages=messages,
-                model=settings.llm_model_id,
+                model=self.generator.model_id,
                 max_tokens=1024,
                 temperature=0.0,
             )

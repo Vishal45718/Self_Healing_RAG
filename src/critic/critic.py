@@ -5,15 +5,16 @@ Evaluates retrieval sufficiency and generation groundedness using structured out
 
 import json
 import logging
+import os
 import re
 from typing import Any, Dict, List, Optional, Union
 
-from huggingface_hub import InferenceClient
 from pydantic import ValidationError
 
 from config.settings import settings
 from src.critic.prompts import format_critic_messages
 from src.critic.schema import CriticEvaluation, CriticFailureReason, CriticVerdict
+from src.generation.llm_client import get_llm_client
 from src.schema import RetrievalResult
 
 logger = logging.getLogger(__name__)
@@ -48,7 +49,7 @@ class Critic:
 
     def __init__(
         self,
-        client: Optional[InferenceClient] = None,
+        client: Optional[Any] = None,
         model_id: Optional[str] = None,
         provider: Optional[str] = None,
         token: Optional[str] = None,
@@ -57,43 +58,35 @@ class Critic:
         """Initialise the Critic.
 
         Args:
-            client: Optional pre-configured InferenceClient (useful for testing).
-            model_id: Hugging Face model ID. Defaults to ``settings.llm_model_id``.
-            provider: Hugging Face provider. Defaults to ``settings.hf_provider``.
-            token: Hugging Face API token. Defaults to ``settings.hf_token``.
+            client: Optional pre-configured client/adapter (useful for testing).
+            model_id: LLM model ID. Defaults to provider active model in settings.
+            provider: LLM provider ("gemini", "huggingface", "together", etc.).
+            token: API key or token. Defaults to provider-specific token from settings.
             temperature: Sampling temperature. Defaults to 0.0 for deterministic evaluation.
         """
-        self.model_id = model_id if model_id is not None else settings.llm_model_id
-        self.provider = provider if provider is not None else settings.hf_provider
-        self.token = token if token is not None else settings.hf_token
-        self.temperature = temperature
-
-        if client is not None:
-            self._client = client
+        self.provider = provider if provider is not None else settings.llm_provider
+        if model_id is not None:
+            self.model_id = model_id
         else:
-            if not self.token:
-                logger.warning("No Hugging Face token provided or found in settings.")
-                self._client = None
+            if self.provider.lower() == "gemini":
+                self.model_id = settings.gemini_model_id
             else:
-                self._client = InferenceClient(
-                    provider=self.provider,  # type: ignore[arg-type]
-                    token=self.token,
-                )
+                self.model_id = settings.llm_model_id
 
-    def _get_client(self) -> InferenceClient:
-        """Return the active InferenceClient or raise ValueError if credentials missing."""
+        self.token = token
+        self.temperature = temperature
+        self._client = client
+
+    def _get_client(self) -> Any:
+        """Return the active LLM client or raise ValueError if credentials missing."""
         if self._client is not None:
             return self._client
 
-        if not self.token:
-            raise ValueError(
-                "Hugging Face API token is required for critic evaluation but not configured. "
-                "Set HF_TOKEN in your environment or pass a configured client."
-            )
-
-        self._client = InferenceClient(
-            provider=self.provider,  # type: ignore[arg-type]
+        self._client = get_llm_client(
+            provider=self.provider,
+            model_id=self.model_id,
             token=self.token,
+            client=None,
         )
         return self._client
 

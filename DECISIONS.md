@@ -141,3 +141,15 @@ This document records the architectural and technology decisions made for the Se
   2. *Case-Insensitive Reformulation Deduplication*: Enforced quote stripping and case-insensitive matching in `reformulate_node` to prevent subtle formatting duplicates in `query_history`.
   3. *Shortcut-Aware Metric Calculation*: Refined LLM call counting in `EvaluationRunner` to dynamically account for empty-context and abstention shortcuts, eliminating metric inflation.
 
+---
+
+## D-014: Official Google GenAI SDK & Unified LLM Client Abstraction (Phase 10)
+- **Status**: Accepted
+- **Context**: Need to support Google Gemini API as the primary live LLM provider while preserving full backward compatibility with existing Hugging Face Inference Providers, deterministic mocks, and test suites.
+- **Decision & Rationale**:
+  1. Adopt the official `google-genai` SDK (`genai.Client(api_key=...)`) with `gemini-3.6-flash` as default.
+  2. Introduce `BaseLLMClient` and `get_llm_client(...)` in `src/generation/llm_client.py` as a lightweight abstraction layer.
+  3. Maintain a standard `ChatCompletionResponse` schema (`.choices[0].message.content` and `.raw_response`) matching the existing `InferenceClient` response interface.
+  4. Ensure `Generator`, `Critic`, and graph nodes (`reformulate_node`, `regenerate_node`) consume the active provider client without duplicated provider-specific branching logic.
+  5. Read `GEMINI_API_KEY` strictly from environment variables or `.env` via `Settings`, avoiding any secret leakage.
+

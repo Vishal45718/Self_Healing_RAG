@@ -148,10 +148,16 @@ def test_critic_schema_validation_error():
 
 
 def test_critic_missing_credentials_raises_value_error():
-    """Critic raises ValueError when token is missing and no client is supplied."""
+    """Critic raises ValueError when credentials are missing and no client is supplied."""
+    # Default provider is Gemini
     critic = Critic(client=None, token="")
-    with pytest.raises(ValueError, match="Hugging Face API token is required"):
+    with pytest.raises(ValueError, match="Gemini API key is required"):
         critic.evaluate(query="Q", context="C", answer="A")
+
+    # Explicit Hugging Face provider
+    hf_critic = Critic(client=None, provider="huggingface", token="")
+    with pytest.raises(ValueError, match="Hugging Face API token is required"):
+        hf_critic.evaluate(query="Q", context="C", answer="A")
 
 
 @pytest.mark.parametrize("invalid_arg", ["", "   ", None])

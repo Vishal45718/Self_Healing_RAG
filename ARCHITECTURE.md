@@ -39,7 +39,8 @@ flowchart TD
 
 ### 2.2 Retrieval & Generation (`src/retrieval/`, `src/generation/`)
 * **`Retriever`**: Coordinates query embedding and vector search, returning strongly typed `RetrievalResult` objects containing distance, similarity scores, and original metadata.
-* **`Generator`**: Interfaces with Hugging Face Inference Providers (`huggingface_hub.InferenceClient`) using deterministic sampling (`temperature=0.0`). Strictly instructs the LLM to ground answers exclusively in retrieved evidence and abstain when context is lacking.
+* **`LLM Client Abstraction` (`src/generation/llm_client.py`)**: Unified interface (`BaseLLMClient`, `GeminiLLMClient`, and `HFInferenceAdapter`) standardizing chat completions across Google Gemini (`google-genai`) and Hugging Face Inference Providers (`huggingface_hub`). Defaults to Google Gemini (`gemini-3.6-flash`).
+* **`Generator`**: Interfaces with the configured LLM provider through the client abstraction using deterministic sampling (`temperature=0.0`). Strictly instructs the LLM to ground answers exclusively in retrieved evidence and abstain when context is lacking.
 
 ### 2.3 Structured Critic (`src/critic/`)
 * **`Critic`**: Decoupled evaluator inspecting `(query, context, answer)`.
@@ -97,3 +98,4 @@ To evaluate the real-world utility and trade-offs of self-healing cycles, the sy
 * **D-009 (Explicit Abstention)**: Separates retrieval failure from safe deferral, preventing infinite recovery loops on unanswerable questions.
 * **D-010 (Dedicated Recovery Router)**: Isolates recovery dispatch into a single node with strict typing and no re-retrieval on generation errors.
 * **D-011 (Query History Deduplication)**: Tracks attempted queries in state to guarantee no repeat queries during reformulation.
+* **D-014 (Multi-Provider LLM Abstraction & Google Gemini)**: Unified client abstraction standardizing chat completions across Google Gemini (`gemini-3.6-flash` default) and Hugging Face providers with zero vendor lock-in.

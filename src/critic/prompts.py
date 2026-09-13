@@ -3,7 +3,6 @@
 import json
 from typing import Dict, List, Union
 
-from src.generation.prompts import format_rag_context
 from src.schema import RetrievalResult
 
 CRITIC_SYSTEM_PROMPT = """You are a rigorous, objective evaluation critic for a Retrieval-Augmented Generation (RAG) system.
@@ -43,6 +42,8 @@ def format_critic_messages(
     answer: str,
 ) -> List[Dict[str, str]]:
     """Format messages for critic evaluation."""
+    from src.generation.prompts import format_rag_context
+
     formatted_context = format_rag_context(context)
     user_content = (
         f"USER QUERY:\n{query.strip()}\n\n"
