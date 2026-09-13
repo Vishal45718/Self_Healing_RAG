@@ -196,17 +196,25 @@ class EvaluationRunner:
         if len(query_history) > 1:
             is_reformulation_success = critic_eval.is_retrieval_sufficient and is_pass
 
-        # Calculate LLM call count across all iterations
-        # Iteration 1: generate (1) + critic (1)
-        # Iteration k > 1: recovery action (1 reformulate or 1 regenerate) + (1 generate if reformulate) + critic (1)
+        # Calculate LLM call count taking generator and critic shortcuts into account
         reformulations_count = max(0, len(query_history) - 1)
         regenerations_count = max(0, retries - reformulations_count)
-        llm_calls = (
-            iterations  # Critic calls
-            + 1  # Initial generator call
-            + (reformulations_count * 2)  # Reformulator + Re-generator
-            + regenerations_count  # Regenerator
-        )
+
+        retrieved_chunks = state.get("retrieved_chunks", [])
+        if not retrieved_chunks:
+            # Empty context shortcut: generator (0) + critic (0) for attempts with empty context
+            # Only query reformulation calls the LLM
+            llm_calls = reformulations_count
+        elif is_abstention and verdict == CriticVerdict.ABSTAIN and retries == 0:
+            # Critic abstention shortcut used on attempt 1
+            llm_calls = 1
+        else:
+            llm_calls = (
+                iterations  # Critic calls
+                + 1  # Initial generator call
+                + (reformulations_count * 2)  # Reformulator + Re-generator
+                + regenerations_count  # Regenerator
+            )
 
         retrieved_ids = [c.id for c in state.get("retrieved_chunks", [])]
 

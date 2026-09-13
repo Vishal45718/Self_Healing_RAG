@@ -177,9 +177,14 @@ class SelfHealingRAG:
                 temperature=0.7,
             )
             candidate = response.choices[0].message.content.strip()
+            if (candidate.startswith('"') and candidate.endswith('"')) or (
+                candidate.startswith("'") and candidate.endswith("'")
+            ):
+                candidate = candidate[1:-1].strip()
 
-            # Guarantee: never return an empty query or a repeated query
-            if candidate and candidate not in query_history:
+            # Guarantee: never return an empty query or a repeated query (case-insensitive)
+            lower_history = {q.lower() for q in query_history}
+            if candidate and candidate.lower() not in lower_history:
                 new_query = candidate
 
         except Exception:
@@ -290,6 +295,9 @@ class SelfHealingRAG:
 
     def invoke(self, query: str) -> GraphState:
         """Run the self-healing workflow for a given query."""
+        if not isinstance(query, str) or not query.strip():
+            raise ValueError("Query must be a non-empty string.")
+
         initial_state: GraphState = {
             "original_query": query,
             "current_query": query,

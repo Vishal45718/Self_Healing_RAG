@@ -525,3 +525,46 @@ class TestGenerationUngroundedMaxRetries:
         mock_retriever.retrieve.assert_called_once()
         # Regeneration is called (max_retries - 1) times
         assert mock_generator._client.chat_completion.call_count == rag.max_retries - 1
+
+
+class TestReformulationNormalization:
+    """Regression tests for reformulate_node quote stripping and case-insensitive history check."""
+
+    def test_reformulate_node_strips_quotes_and_checks_case(
+        self, mock_retriever, mock_generator, mock_critic
+    ):
+        """Quoted output e.g. '"New Query"' is stripped to 'New Query' and case matches history."""
+        mock_critic.evaluate.side_effect = [_retrieval_fail(), _pass_eval()]
+
+        quoted_response = MagicMock()
+        quoted_response.choices = [
+            MagicMock(message=MagicMock(content='"New Reformulated Query"'))
+        ]
+        mock_generator._client.chat_completion.return_value = quoted_response
+
+        rag = SelfHealingRAG(mock_retriever, mock_generator, mock_critic)
+        state = rag.invoke("Original")
+
+        assert state["current_query"] == "New Reformulated Query"
+        assert "New Reformulated Query" in state["query_history"]
+        assert '"New Reformulated Query"' not in state["query_history"]
+
+    def test_reformulate_node_rejects_case_insensitive_duplicate(
+        self, mock_retriever, mock_generator, mock_critic
+    ):
+        """Case-insensitive duplicate output e.g. 'ORIGINAL' is rejected for 'Original'."""
+        mock_critic.evaluate.side_effect = [_retrieval_fail(), _pass_eval()]
+
+        upper_response = MagicMock()
+        upper_response.choices = [
+            MagicMock(message=MagicMock(content="ORIGINAL"))
+        ]
+        mock_generator._client.chat_completion.return_value = upper_response
+
+        rag = SelfHealingRAG(mock_retriever, mock_generator, mock_critic)
+        state = rag.invoke("Original")
+
+        # Falls back to Original and does not insert uppercase duplicate into query_history
+        assert state["current_query"] == "Original"
+        assert state["query_history"] == ["Original"]
+

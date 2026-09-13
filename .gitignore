@@ -46,10 +46,11 @@ data/chroma/
 logs/*.log
 *.log
 
-# Unit test / coverage
+# Unit test / coverage / evaluation
 .pytest_cache/
 .coverage
 htmlcov/
+evaluation_results.json
 
 # IDE & OS files
 .vscode/

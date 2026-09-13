@@ -130,3 +130,14 @@ This document records the architectural and technology decisions made for the Se
   2. *Correct Abstention*: Distinguishes safe deferral on unanswerable/out-of-domain queries from ungrounded hallucinations.
   3. *Overhead Ratios*: Captures wall-clock latency (ms), retries, and total LLM invocations per query.
   All evaluation harness components run deterministically with mocks in unit tests and serialize results to structured JSON and Markdown reports.
+
+---
+
+## D-013: Final Hardening & Audit Rules (Phase 8)
+- **Status**: Accepted
+- **Context**: Final audit of system consistency, state transitions, evaluation metric accuracy, edge cases, and documentation alignment prior to project completion.
+- **Decision & Rationale**:
+  1. *Input Validation at Entry*: Enforced non-empty string validation at `SelfHealingRAG.invoke()` level to guarantee symmetry with component-level APIs.
+  2. *Case-Insensitive Reformulation Deduplication*: Enforced quote stripping and case-insensitive matching in `reformulate_node` to prevent subtle formatting duplicates in `query_history`.
+  3. *Shortcut-Aware Metric Calculation*: Refined LLM call counting in `EvaluationRunner` to dynamically account for empty-context and abstention shortcuts, eliminating metric inflation.
+

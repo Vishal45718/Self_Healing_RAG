@@ -15,6 +15,8 @@ This document tracks the phased milestones, tasks, acceptance criteria, and comp
 | **Phase 4** | **End-to-End Evaluation & Hardening** | **COMPLETED** |
 | **Phase 5** | **Reformulation & Strict Regeneration** | **COMPLETED** |
 | **Phase 7** | **Evaluation & Baseline Comparison** | **COMPLETED** |
+| **Phase 8** | **Final Hardening & Audit** | **COMPLETED** |
+| **Phase 9** | **Documentation, Demo, and Resume/GitHub Polish** | **COMPLETED** |
 
 ---
 
@@ -316,3 +318,98 @@ and unanswerable queries.
 - [x] Structured JSON serialization and formatted Markdown reporting implemented
 - [x] Zero secret leakage or credential exposure
 - [x] `DECISIONS.md` updated with D-012
+
+---
+
+## Phase 8: Final Hardening & Audit
+
+### Objectives
+Perform full repository audit for broken behavior, state transitions, retry/termination edge cases, evaluation metric correctness, test gaps, hardcoded secrets, and documentation staleness.
+
+### Tasks & Status
+- [x] **8.1 Repository Audit & Dependency Check**
+  - [x] Verified zero secret leakage or hardcoded API keys.
+  - [x] Verified Git hygiene (`.env`, local Chroma storage ignored).
+  - [x] Ignored deprecated legacy directories `self-healing-rag-phase1/` and `self-healing-rag-phase2/`.
+
+- [x] **8.2 Pipeline State Transition & Input Validation Hardening**
+  - [x] Added top-level query validation check `if not isinstance(query, str) or not query.strip(): raise ValueError(...)` to `SelfHealingRAG.invoke()`.
+  - [x] Enhanced `reformulate_node` to strip surrounding quotes e.g. `"Query"` and enforce case-insensitive matching against `query_history`.
+  - [x] Added regression tests in `test_graph.py` and `test_reformulation.py`.
+
+- [x] **8.3 Evaluation Metric Correctness Hardening**
+  - [x] Refined `llm_calls` calculation in `EvaluationRunner` to dynamically account for empty-context (0 LLM calls) and critic abstention (0 LLM calls) shortcuts.
+  - [x] Added regression test `test_evaluate_sample_self_healing_llm_call_shortcuts` in `test_evaluation.py`.
+
+- [x] **8.4 Test Suite Reconciliation & Verification**
+  - [x] Executed complete pytest suite: **118 passed, 1 skipped, 0 failed across 119 collected tests**.
+  - [x] All 13 test files passing deterministically.
+
+- [x] **8.5 Documentation Reconciliation**
+  - [x] Recorded BUG-004, BUG-005, BUG-006 in `BUG_LOG.md`.
+  - [x] Recorded D-013 in `DECISIONS.md`.
+  - [x] Documented final test suite counts and concise remaining limitations.
+
+---
+
+## Definition of Done (Phase 8)
+
+- [x] Full test suite executed with exact counts reported (118 passed, 1 skipped, 0 failed)
+- [x] All genuine defects diagnosed, fixed, and guarded with dedicated regression tests
+- [x] `PROJECT_PLAN.md`, `BUG_LOG.md`, and `DECISIONS.md` fully updated
+- [x] Concise list of remaining limitations produced
+- [x] Zero architectural violations, secret leaks, or speculative features added
+
+---
+
+## Phase 9: Documentation, Demo, and Resume/GitHub Polish
+
+### Objectives
+Finalize end-user and developer documentation, implement an interactive and deterministic offline demo runner, document the evaluation workflow without speculative benchmarks, clean git/project hygiene, and formalize verified capabilities into resume-ready impact statements.
+
+### Tasks & Status
+- [x] **9.1 Comprehensive README Documentation**
+  - [x] Documented project purpose, motivation, and problems solved by self-healing RAG.
+  - [x] Added Mermaid architectural state diagram illustrating cyclical LangGraph feedback loop.
+  - [x] Documented setup, environment configuration (`.env.example`), and dependencies.
+  - [x] Documented programmatic document ingestion and pipeline query execution.
+  - [x] Documented Baseline vs Self-Healing comparison matrix.
+  - [x] Documented evaluation workflow, metrics definitions, and execution commands.
+  - [x] Documented automated test suite breakdown and exact status.
+  - [x] Provided objective analysis of known system limitations.
+
+- [x] **9.2 Interactive Demonstration Script (`demo.py`)**
+  - [x] Implemented reproducible offline demonstration mode with deterministic mock inference.
+  - [x] Implemented optional live mode targeting Hugging Face Inference Providers.
+  - [x] Demonstrated direct grounded answer scenario (PASS on attempt 1).
+  - [x] Demonstrated critic rejection and self-healing recovery loop (hallucination -> critic FAIL -> regenerate -> PASS on attempt 2).
+  - [x] Demonstrated safe abstention scenario on unanswerable query (ABSTAIN on attempt 1).
+  - [x] Added unit tests for demo runner script in `tests/test_demo.py`.
+
+- [x] **9.3 Architecture Specification Documentation (`ARCHITECTURE.md`)**
+  - [x] Detailed component taxonomy across ingestion, retrieval, generation, critique, and graph orchestration.
+  - [x] Specified `GraphState` schema and state machine transition rules.
+  - [x] Formulated recovery routing invariant guarantees (query history deduplication, zero re-retrieval on generation errors).
+  - [x] Documented fast-fail and fast-pass shortcut optimizations.
+
+- [x] **9.4 Repository & Git Hygiene Audit**
+  - [x] Cleaned repository of accidental/generated artifacts.
+  - [x] Updated `.gitignore` to include benchmark outputs (`evaluation_results.json`).
+  - [x] Added MIT `LICENSE` file.
+  - [x] Verified zero secret leakage or exposed credentials.
+  - [x] Ignored legacy phase snapshot directories (`self-healing-rag-phase1/`, `self-healing-rag-phase2/`).
+
+- [x] **9.5 Full Verification & Test Suite Execution**
+  - [x] Executed full test suite: **120 passed, 1 skipped, 0 failed across 121 collected tests**.
+  - [x] All 14 test modules passing deterministically.
+
+---
+
+## Definition of Done (Phase 9 & Project Completion)
+
+- [x] All Phase 9 documentation, demo, and hygiene tasks completed
+- [x] Complete pytest suite executed: 120 passed, 1 skipped, 0 failed
+- [x] `README.md`, `ARCHITECTURE.md`, `demo.py`, `LICENSE`, and `.gitignore` polished and GitHub-ready
+- [x] Project plan marked fully complete with zero unresolved blockers or speculative phases
+
+

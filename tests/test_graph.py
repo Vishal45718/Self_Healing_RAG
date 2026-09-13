@@ -167,3 +167,13 @@ def test_reformulation_fallback(mock_retriever, mock_generator, mock_critic):
     # Should recover gracefully but current_query remains unchanged
     assert state["iterations"] == 2
     assert state["current_query"] == "Original query"
+
+
+def test_invoke_empty_query_raises_value_error(mock_retriever, mock_generator, mock_critic):
+    """Regression test: SelfHealingRAG.invoke() raises ValueError on empty/whitespace query."""
+    rag = SelfHealingRAG(mock_retriever, mock_generator, mock_critic)
+    with pytest.raises(ValueError, match="Query must be a non-empty string"):
+        rag.invoke("")
+    with pytest.raises(ValueError, match="Query must be a non-empty string"):
+        rag.invoke("   ")
+

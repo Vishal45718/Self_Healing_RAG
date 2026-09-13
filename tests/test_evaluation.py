@@ -531,3 +531,48 @@ def test_json_report_serialization_and_deserialization(tmp_path):
     assert loaded_report.baseline_metrics.critic_pass_rate == 1.0
     assert loaded_report.self_healing_metrics.average_latency_ms == 90.0
     assert len(loaded_report.per_query_results) == 1
+
+
+def test_evaluate_sample_self_healing_llm_call_shortcuts():
+    """Regression test: LLM call count in evaluate_sample_self_healing accounts for empty context shortcuts."""
+    mock_retriever = MagicMock()
+    mock_generator = MagicMock()
+    mock_critic = MagicMock()
+    mock_sh = MagicMock()
+
+    # Empty context state on 1 iteration
+    mock_sh.invoke.return_value = {
+        "original_query": "Unanswerable Q",
+        "current_query": "Unanswerable Q",
+        "retrieved_chunks": [],
+        "generation": "The provided context is insufficient...",
+        "critic_evaluation": CriticEvaluation(
+            verdict=CriticVerdict.FAIL,
+            failure_reason=CriticFailureReason.RETRIEVAL_INSUFFICIENT,
+            is_retrieval_sufficient=False,
+            is_generation_grounded=True,
+            reasoning="Empty context",
+        ),
+        "iterations": 1,
+        "query_history": ["Unanswerable Q"],
+    }
+
+    runner = EvaluationRunner(
+        retriever=mock_retriever,
+        generator=mock_generator,
+        critic=mock_critic,
+        self_healing_rag=mock_sh,
+    )
+
+    sample = EvalSample(
+        id="unanswerable_test",
+        query="Unanswerable Q",
+        scenario=ScenarioType.UNANSWERABLE,
+        expected_behavior=ExpectedBehavior.ABSTAIN,
+    )
+
+    result = runner.evaluate_sample_self_healing(sample)
+
+    # Empty context shortcut means 0 LLM calls made
+    assert result.llm_calls == 0
+
