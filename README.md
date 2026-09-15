@@ -265,7 +265,7 @@ pytest -v
   * `tests/test_retriever.py`: 8 tests (vector similarity and top-k filtering)
   * `tests/test_settings.py`: 2 tests (pydantic-settings environment loading)
   * `tests/test_vector_store.py`: 13 tests (Chroma persistence & idempotency)
-* **Results**: **120 Passed, 1 Skipped** (Live HF integration test skips cleanly when token lacks serverless inference scope; zero code defects).
+* **Results**: **129 Passed, 2 warnings** (Live HF integration test skips cleanly when token lacks serverless inference scope; zero code defects).
 
 ---
 
