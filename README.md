@@ -56,7 +56,7 @@ For deeper architectural specifications and ADR design records, see [ARCHITECTUR
 │   ├── ingestion/           # Document loader, character chunker, and local embedder
 │   ├── retrieval/           # Vector retriever with similarity scoring
 │   └── schema.py            # Shared Document, Chunk, RetrievalResult, and GraphState
-├── tests/                   # 121 comprehensive pytest unit & integration tests
+├── tests/                   # 129 comprehensive pytest unit & integration tests
 ├── demo.py                  # Interactive demonstration script (offline & live modes)
 ├── ARCHITECTURE.md          # Technical architectural specification
 ├── BUG_LOG.md               # Defect audit and resolution log
@@ -78,8 +78,8 @@ For deeper architectural specifications and ADR design records, see [ARCHITECTUR
 
 ```bash
 # Clone repository
-git clone https://github.com/your-username/self-healing-rag.git
-cd self-healing-rag
+git clone https://github.com/Vishal45718/Self_Healing_RAG.git
+cd Self_Healing_RAG
 
 # Create virtual environment
 python3.11 -m venv .venv
@@ -250,7 +250,7 @@ pytest -v
 
 ### Current Test Suite Status
 
-* **121 Collected Tests**:
+* **129 Collected Tests**:
   * `tests/test_baseline.py`: 7 tests (single-pass baseline behavior)
   * `tests/test_chunker.py`: 6 tests (recursive chunking & SHA-256 chunk IDs)
   * `tests/test_critic.py`: 12 tests (Pydantic validation, verdicts, shortcuts)
